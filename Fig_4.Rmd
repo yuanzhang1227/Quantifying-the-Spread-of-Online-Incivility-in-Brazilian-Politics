@@ -1,0 +1,248 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(dplyr)
+library(npreg)
+```
+
+```{r}
+# Import datasets (only uncivil posts included)
+IMP_influencer <- read.csv('IMP_Incivility_Predicted_timestamped.csv')
+PHAVPR_influencer <- read.csv('PHAVPR_Incivility_Predicted_timestamped.csv')
+HSST_influencer <- read.csv('HSST_Incivility_Predicted_timestamped.csv')
+THREAT_influencer <- read.csv('THREAT_Incivility_Predicted_timestamped.csv')
+```
+
+```{r}
+# Processing IMP data 
+# Group by 'datetime_formatted' and count occurrences
+IMP_texts_per_week <- IMP_influencer %>%
+  dplyr::group_by(datetime_formatted) %>%
+  dplyr::summarise(Text_Count = n()) %>%
+  dplyr::ungroup()
+
+# Convert 'datetime_formatted' to Date
+IMP_texts_per_week$datetime_formatted <- as.Date(IMP_texts_per_week$datetime_formatted)
+
+# Arrange by 'datetime_formatted'
+IMP_texts_per_week <- IMP_texts_per_week %>%
+  dplyr::arrange(datetime_formatted)
+
+IMP_texts_per_week <- IMP_texts_per_week %>%
+  dplyr::mutate(row_number = row_number()) %>% 
+  dplyr::select(-row_number)
+IMP_texts_per_week <- IMP_texts_per_week[IMP_texts_per_week$datetime_formatted != as.Date("2023-02-01"), ]
+```
+
+```{r}
+# Processing PHAVPR data 
+# Group by 'datetime_formatted' and count occurrences
+PHAVPR_texts_per_week <- PHAVPR_influencer %>%
+  dplyr::group_by(datetime_formatted) %>%
+  dplyr::summarise(Text_Count = n()) %>%
+  dplyr::ungroup()
+
+# Convert 'datetime_formatted' to Date
+PHAVPR_texts_per_week$datetime_formatted <- as.Date(PHAVPR_texts_per_week$datetime_formatted)
+
+# Arrange by 'datetime_formatted'
+PHAVPR_texts_per_week <- PHAVPR_texts_per_week %>%
+  dplyr::arrange(datetime_formatted)
+
+PHAVPR_texts_per_week <- PHAVPR_texts_per_week %>%
+  dplyr::mutate(row_number = row_number()) %>% 
+  dplyr::select(-row_number)
+PHAVPR_texts_per_week <- PHAVPR_texts_per_week[PHAVPR_texts_per_week$datetime_formatted != as.Date("2023-02-01"), ]
+```
+
+```{r}
+# Processing HSST data 
+# Group by 'datetime_formatted' and count occurrences
+HSST_texts_per_week <- HSST_influencer %>%
+  dplyr::group_by(datetime_formatted) %>%
+  dplyr::summarise(Text_Count = n()) %>%
+  dplyr::ungroup()
+
+# Convert 'datetime_formatted' to Date
+HSST_texts_per_week$datetime_formatted <- as.Date(HSST_texts_per_week$datetime_formatted)
+
+# Arrange by 'datetime_formatted'
+HSST_texts_per_week <- HSST_texts_per_week %>%
+  dplyr::arrange(datetime_formatted)
+
+HSST_texts_per_week <- HSST_texts_per_week %>%
+  dplyr::mutate(row_number = row_number()) %>% 
+  dplyr::select(-row_number)
+HSST_texts_per_week <- HSST_texts_per_week[HSST_texts_per_week$datetime_formatted != as.Date("2023-02-01"), ]
+```
+
+```{r}
+# Processing THREAT data 
+# Group by 'datetime_formatted' and count occurrences
+THREAT_texts_per_week <- THREAT_influencer %>%
+  dplyr::group_by(datetime_formatted) %>%
+  dplyr::summarise(Text_Count = n()) %>%
+  dplyr::ungroup()
+
+# Convert 'datetime_formatted' to Date
+THREAT_texts_per_week$datetime_formatted <- as.Date(THREAT_texts_per_week$datetime_formatted)
+
+# Arrange by 'datetime_formatted'
+THREAT_texts_per_week <- THREAT_texts_per_week %>%
+  dplyr::arrange(datetime_formatted)
+
+THREAT_texts_per_week <- THREAT_texts_per_week %>%
+  dplyr::mutate(row_number = row_number()) %>% 
+  dplyr::select(-row_number)
+THREAT_texts_per_week <- THREAT_texts_per_week[THREAT_texts_per_week$datetime_formatted != as.Date("2023-02-01"), ]
+```
+
+```{r}
+png("ICWSM_Fig_4.png", width = 24, height = 10, units = "in", res = 300)
+
+layout(matrix(c(1:8), nrow = 2, byrow = TRUE), heights = c(1, 1))
+
+par(oma = c(6, 7, 2, 8), mar = c(0, 0, 0, 0), mgp = c(3, 1, 0), las = 1, bty = "n", cex.lab = 3, cex.axis = 3)
+
+
+datasets <- list(IMP_texts_per_week, PHAVPR_texts_per_week, HSST_texts_per_week, THREAT_texts_per_week)
+titles <- c("IMP", "PHAVPR", "HSST", "THREAT")
+colors <- c("darkred", "darkblue", "darkgreen", "purple")
+highlight_dates_list <- list(
+  as.Date(c("2022-09-30", "2022-10-29")), 
+  as.Date(c("2023-01-08")),                
+  as.Date(c("2022-12-13")),                
+  as.Date(c("2022-10-30", "2023-01-08"))   
+)
+
+# Important events during the 2022 Brazilian election
+important_dates <- as.Date(c("2022-10-02", "2022-10-30", "2022-12-12", "2023-01-08"))
+date_labels <- c("(1)", "(2)(3)", "(4)", "(5)")
+
+# Loop through datasets and create subplots
+for (i in 1:4) {
+  data <- datasets[[i]]
+  highlight_dates <- highlight_dates_list[[i]]
+
+  data$datetime_formatted <- as.Date(data$datetime_formatted)
+  data$Text_Count <- as.numeric(data$Text_Count)
+  data$numeric_date <- as.numeric(data$datetime_formatted)
+
+  # Fit smoothing spline for upper row using spar = 0.6
+  spline_model <- smooth.spline(data$numeric_date, data$Text_Count, spar = 0.6)
+
+  # Bootstrap confidence intervals
+  n_points <- length(data$Text_Count)
+  bootstrap_spar <- matrix(NA, nrow = 500, ncol = n_points)
+
+  for (j in 1:500) {
+    boot_indices <- sample(1:n_points, size = n_points, replace = TRUE)
+    x_boot <- data$numeric_date[boot_indices]
+    y_boot <- data$Text_Count[boot_indices]
+    spline_spar_boot <- smooth.spline(x_boot, y_boot, spar = 0.6)
+    bootstrap_spar[j, ] <- predict(spline_spar_boot, data$numeric_date)$y
+  }
+
+  ci_spar_lower <- apply(bootstrap_spar, 2, quantile, probs = 0.025)
+  ci_spar_upper <- apply(bootstrap_spar, 2, quantile, probs = 0.975)
+
+  y_max <- max(data$Text_Count, na.rm = TRUE) * 1.2
+
+  par(mar = c(0, 4, 2, 1))
+
+  plot(NA, NA,
+       xlim = range(data$datetime_formatted),
+       ylim = c(0, y_max),
+       xlab = "", ylab = "",
+       xaxt = "n", yaxt = "s",
+       main = "", cex.main = 2.2)
+
+  
+   polygon(c(data$datetime_formatted, rev(data$datetime_formatted)),
+           c(ci_spar_lower, rev(ci_spar_upper)), col = adjustcolor(colors[i], alpha.f = 0.3), border = NA)
+
+   # Add smoothing spline fit
+   lines(data$datetime_formatted,
+         predict(spline_model, data$numeric_date)$y,
+         col = colors[i], lwd = 2)
+
+   # Add vertical lines for important dates with labels
+   for (k in seq_along(important_dates)) {
+     abline(v = important_dates[k], col = "darkgray", lty = 2)
+     text(important_dates[k], y_max * 0.9, labels = date_labels[k], pos = 1, cex = 2.0, col = "darkgray")
+   }
+
+   mtext(titles[i], side = 3, line = -1.5, cex = 3.0)
+
+   par(mar = c(4, 4, .5 ,1))
+
+   # Fit smoothing spline for scatter plot using GCV
+   spline_model_cv <- ss(data$numeric_date, data$Text_Count, method="GCV", m=2)
+
+   # Bootstrap confidence intervals for lower row
+   bootstrap_spar_cv <- matrix(NA, nrow = 500, ncol = n_points)
+   for (j in 1:500) {
+     boot_indices_cv <- sample(1:n_points, size = n_points, replace = TRUE)
+     x_boot_cv <- data$numeric_date[boot_indices_cv]
+     y_boot_cv <- data$Text_Count[boot_indices_cv]
+     spline_spar_boot_cv <- ss(x_boot_cv, y_boot_cv, method = "GCV", m = 2)
+     bootstrap_spar_cv[j, ] <- predict(spline_spar_boot_cv, data$numeric_date)$y
+   }
+
+   ci_spar_lower_cv <- apply(bootstrap_spar_cv, 2, quantile, probs = 0.025)
+   ci_spar_upper_cv <- apply(bootstrap_spar_cv, 2, quantile, probs = 0.975)
+
+   plot(data$datetime_formatted, data$Text_Count,
+        xlim = c(min(data$datetime_formatted), max(data$datetime_formatted) + 15),
+        ylim = c(0, y_max),
+        xlab = "", ylab = "",
+        pch = 21, col = "black", bg = "gray80", cex = 2)
+
+   # Add confidence intervals 
+   polygon(c(data$datetime_formatted, rev(data$datetime_formatted)),
+           c(ci_spar_lower_cv, rev(ci_spar_upper_cv)), col = adjustcolor(colors[i], alpha.f = 0.3), border = NA)
+
+   # Add GCV spline to scatter plot
+   lines(data$datetime_formatted,
+         predict(spline_model_cv, data$numeric_date)$y,
+         col = colors[i], lwd = 2)
+
+   # Highlight specific dates
+   for (date in highlight_dates) {
+     idx <- which(data$datetime_formatted == date)
+     if (length(idx) >0 ) {
+       points(data$datetime_formatted[idx],data$Text_Count[idx],
+              pch=21,col="black",bg="red",cex=2)
+       text(data$datetime_formatted[idx],data$Text_Count[idx],
+            labels=format(as.Date(date),"%Y-%m-%d"),
+            pos=4 ,offset=0.5 ,cex=2,col="darkred")
+     }
+   }
+
+}
+
+mtext("Time (Year-Month)", side=1 ,outer=TRUE,line=4 ,cex=3)
+mtext("Text Count" ,side=2 ,outer=TRUE,line=4 ,cex=3,las=0)
+
+par(fig=c(0 ,1 ,0 ,1), oma=c(0 ,0 ,0 ,0), mar=c(0 ,0 ,0 ,0), new=TRUE)
+plot(0 ,0 ,type="n" ,bty="n" ,xaxt="n" ,yaxt="n")
+legend("bottom",
+       legend=c("Smoothed Trend","95% Confidence Interval","Observed Data","Highlighted Date","Important Dates"),
+       col=c("black","gray","black","red","darkgray"),
+       lty=c(1 ,NA ,NA ,NA ,2),
+       lwd=c(2 ,NA ,NA ,NA ,1),
+       pch=c(NA ,15 ,21 ,21 ,NA),
+       pt.bg=c(NA ,"gray","gray80","red" ,NA),
+       pt.cex=c(NA ,1.5 ,1 ,1.5 ,NA),
+       bty="n",
+       cex=1.8 ,
+       horiz=TRUE ,
+       inset=c(0 ,-0.1))
+
+dev.off()
+
+```
+
