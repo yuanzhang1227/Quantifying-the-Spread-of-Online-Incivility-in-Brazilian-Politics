@@ -35,7 +35,7 @@ Classified Twitter/X posts from Brazilian political influencers during the 2022 
   - `probas_class_1_[DIMENSION]`: Uncivil probability score
 
 #### Filtered Subsets
-Posts exceeding the 0.7 probability threshold for each incivility dimension:
+Posts labeled as 1 with a predicted probability exceeding the 0.7 threshold for each incivility dimension:
 - `IMP_Incivility_Predicted_timestamped.csv`
 - `PHAVPR_Incivility_Predicted_timestamped.csv` 
 - `HSST_Incivility_Predicted_timestamped.csv`
